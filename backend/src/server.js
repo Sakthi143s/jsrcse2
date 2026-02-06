@@ -239,7 +239,7 @@ setInterval(async () => {
       console.error('Failed to process real-time analysis:', err);
     }
   }
-}, 3000); // Every 3 seconds
+}, 10000); // Every 10 seconds (reduced from 3s to avoid overwhelming free-tier DB)
 
 // Error Handler
 app.use(errorHandler);
@@ -247,11 +247,16 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 5006;
 const startServer = async () => {
-  await connectDB();
+  try {
+    await connectDB();   // wait for Mongo
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error("Server startup failed ❌", err);
+  }
 };
 
 startServer();
