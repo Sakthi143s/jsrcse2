@@ -7,11 +7,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5006',
+        target: 'https://jsrcse2.onrender.com',
         changeOrigin: true,
       },
       '/socket.io': {
-        target: 'http://localhost:5006',
+        target: 'https://jsrcse2.onrender.com',
         ws: true,
       },
     },

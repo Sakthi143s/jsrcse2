@@ -3,7 +3,7 @@ import { Copy, Check, Terminal, Globe, ShieldCheck } from 'lucide-react';
 
 const MonitoringSetup = () => {
     const [copied, setCopied] = useState(false);
-    const backendUrl = window.location.origin.includes('localhost') ? 'http://localhost:5006' : window.location.origin;
+    const backendUrl = window.location.origin.includes('localhost') ? 'https://jsrcse2.onrender.com' : window.location.origin;
 
     const snippet = `<!-- AI Performance Monitoring Agent -->
 <script src="${backendUrl}/agent.js" async></script>

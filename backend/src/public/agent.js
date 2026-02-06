@@ -1,12 +1,13 @@
 (function () {
 
   const IS_LOCAL =
-    window.location.origin.includes('localhost') ||
-    window.location.origin.includes('127.0.0.1');
+  window.location.origin.includes('localhost') ||
+  window.location.origin.includes('127.0.0.1');
 
-  const BACKEND_URL = IS_LOCAL
-    ? 'http://127.0.0.1:5006'
-    : 'https://jsrcse2.onrender.com';   // your LIVE backend
+const BACKEND_URL = IS_LOCAL
+  ? 'http://localhost:5006'          // local backend
+  : 'https://jsrcse2.onrender.com';  // live backend
+
 
   const API_ENDPOINT = BACKEND_URL + '/api/metrics';
   const APP_NAME = window.location.hostname;
