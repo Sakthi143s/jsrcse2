@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 
+mongoose.connection.on('error', err => {
+    console.error('Mongo runtime error ❌', err);
+});
+
 const connectDB = async () => {
     try {
         await mongoose.connect(process.env.MONGODB_URI, {
