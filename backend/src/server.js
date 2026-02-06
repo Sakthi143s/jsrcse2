@@ -152,6 +152,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/', (req, res) => {
+  res.send('AI Performance Optimization Suite API is running. Visit /health for status.');
+});
+
 // Routes
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/bottlenecks', bottleneckRoutes);
