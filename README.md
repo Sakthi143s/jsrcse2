@@ -56,6 +56,11 @@ If you prefer containerization:
 npm run start:docker
 ```
 
+### Real-time Analysis
+The suite now automatically captures:
+- **System Metrics**: Your laptop's actual CPU and Memory usage.
+- **API Performance**: Real latency of every request sent to the backend.
+
 ---
 
 ## 🧪 Simulation & Testing
