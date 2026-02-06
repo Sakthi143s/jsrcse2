@@ -252,6 +252,10 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5006;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT} (bound to 0.0.0.0)`);
 });
+
+// Render/Cloud Stability: Increase timeouts to prevent intermittent 502s
+server.keepAliveTimeout = 120000;
+server.headersTimeout = 125000;
