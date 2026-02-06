@@ -11,23 +11,31 @@ exports.getRegressions = async (req, res) => {
 
 exports.detectRegressions = async (req, res) => {
     try {
-        // Stub for logical detection
-        // Assuming we received current metrics and comparing against baseline
-        const dummyRegression = new Regression({
-            service: 'payment-service',
-            metric: 'responseTime',
-            baseline: { value: 200, timestamp: new Date(Date.now() - 86400000) },
-            current: { value: 350, timestamp: new Date() },
-            degradation: { percentage: 75, absolute: 150 },
-            possibleCauses: [{ type: 'Deploy', description: 'Recent deployment v1.2.0', confidence: 0.8 }]
-        });
-        await dummyRegression.save();
+        const Metric = require('../models/Metric');
+        const recentMetrics = await Metric.find({ service: 'api-gateway' })
+            .sort({ createdAt: -1 })
+            .limit(20);
 
-        if (req.io) {
-            req.io.emit('regression:detected', dummyRegression);
+        if (recentMetrics.length >= 10) {
+            const avgResponseTime = recentMetrics.reduce((sum, m) => sum + m.metrics.responseTime, 0) / recentMetrics.length;
+            const latestMetrics = recentMetrics.slice(0, 3);
+            const latestAvg = latestMetrics.reduce((sum, m) => sum + m.metrics.responseTime, 0) / latestMetrics.length;
+
+            if (latestAvg > avgResponseTime * 1.5) {
+                const regression = new Regression({
+                    service: 'api-gateway',
+                    metric: 'responseTime',
+                    baseline: { value: Math.round(avgResponseTime), timestamp: recentMetrics[19].createdAt },
+                    current: { value: Math.round(latestAvg), timestamp: new Date() },
+                    degradation: { percentage: Math.round(((latestAvg - avgResponseTime) / avgResponseTime) * 100) },
+                    possibleCauses: [{ type: 'Traffic', description: 'Real-time traffic spike detected', confidence: 0.7 }]
+                });
+                await regression.save();
+                if (req.io) req.io.emit('regression:detected', regression);
+                return res.status(201).json(regression);
+            }
         }
-
-        res.status(201).json(dummyRegression);
+        res.json({ message: 'No regressions detected in current real data.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

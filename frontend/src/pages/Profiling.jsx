@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import socket from '../services/websocket';
 import ProfileList from '../components/profiling/ProfileList';
-import { FileCode, Play } from 'lucide-react';
+import { FileCode, Play, RefreshCw } from 'lucide-react';
 
 const Profiling = () => {
     const [profiles, setProfiles] = useState([]);
@@ -74,12 +74,11 @@ const Profiling = () => {
                 </div>
 
                 <button
-                    onClick={triggerProfiling}
-                    disabled={profiling}
+                    onClick={fetchProfiles}
                     className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 shadow-md hover:shadow-lg transition-colors"
                 >
-                    <Play size={16} />
-                    {profiling ? 'Profiling...' : 'Start Profiling Session'}
+                    <RefreshCw size={16} />
+                    Refresh Results
                 </button>
             </div>
 

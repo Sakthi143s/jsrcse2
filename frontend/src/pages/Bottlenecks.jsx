@@ -63,12 +63,12 @@ const Bottlenecks = () => {
                     onClick={triggerAnalysis}
                     disabled={analyzing}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${analyzing
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
                         }`}
                 >
                     <RefreshCw size={18} className={analyzing ? 'animate-spin' : ''} />
-                    {analyzing ? 'Analyzing...' : 'Run AI Analysis'}
+                    {analyzing ? 'Scanning...' : 'Scan System Now'}
                 </button>
             </div>
 
