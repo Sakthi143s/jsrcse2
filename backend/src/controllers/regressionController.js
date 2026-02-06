@@ -12,6 +12,7 @@ exports.getRegressions = async (req, res) => {
 exports.detectRegressions = async (req, res) => {
     try {
         const Metric = require('../models/Metric');
+        const aiService = require('../services/aiService');
         const recentMetrics = await Metric.find({ service: 'api-gateway' })
             .sort({ createdAt: -1 })
             .limit(20);
@@ -22,14 +23,21 @@ exports.detectRegressions = async (req, res) => {
             const latestAvg = latestMetrics.reduce((sum, m) => sum + m.metrics.responseTime, 0) / latestMetrics.length;
 
             if (latestAvg > avgResponseTime * 1.5) {
-                const regression = new Regression({
+                const regressionData = {
                     service: 'api-gateway',
                     metric: 'responseTime',
                     baseline: { value: Math.round(avgResponseTime), timestamp: recentMetrics[19].createdAt },
                     current: { value: Math.round(latestAvg), timestamp: new Date() },
-                    degradation: { percentage: Math.round(((latestAvg - avgResponseTime) / avgResponseTime) * 100) },
-                    possibleCauses: [{ type: 'Traffic', description: 'Real-time traffic spike detected', confidence: 0.7 }]
+                    degradation: { percentage: Math.round(((latestAvg - avgResponseTime) / avgResponseTime) * 100) }
+                };
+
+                const analysis = await aiService.analyzeRegression(regressionData);
+
+                const regression = new Regression({
+                    ...regressionData,
+                    possibleCauses: analysis.suggestions.map(s => ({ type: 'AI-Suggestion', description: s, confidence: 0.8 }))
                 });
+
                 await regression.save();
                 if (req.io) req.io.emit('regression:detected', regression);
                 return res.status(201).json(regression);

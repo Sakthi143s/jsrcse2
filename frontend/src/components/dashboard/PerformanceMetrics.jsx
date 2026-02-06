@@ -2,21 +2,24 @@ import React from 'react';
 import { Clock, Cpu, Server, AlertCircle } from 'lucide-react';
 
 const MetricCard = ({ title, value, unit, icon: Icon, color, change }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+    <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-sm border border-slate-100 card-hover transition-all group">
         <div className="flex items-center justify-between mb-4">
-            <div className={`p-3 rounded-lg ${color}`}>
-                <Icon size={24} className="text-white" />
+            <div className={`p-3 rounded-xl ${color} shadow-lg shadow-current/20 group-hover:scale-110 transition-transform`}>
+                <Icon size={22} className="text-white" />
             </div>
-            {change && (
-                <span className={`text-sm font-medium ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {change > 0 ? '+' : ''}{change}%
-                </span>
+            {change !== undefined && (
+                <div className={`px-2 py-1 rounded-full text-xs font-bold ${change >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                    {change > 0 ? '↑' : '↓'} {Math.abs(change)}%
+                </div>
             )}
         </div>
-        <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
-        <div className="flex items-baseline mt-1 space-x-1">
-            <span className="text-2xl font-bold text-slate-800">{value}</span>
-            <span className="text-slate-400 text-sm">{unit}</span>
+        <h3 className="text-slate-500 text-sm font-semibold uppercase tracking-wider">{title}</h3>
+        <div className="flex items-baseline mt-2 space-x-1">
+            <span className="text-3xl font-extrabold text-slate-800 tabular-nums">{value}</span>
+            <span className="text-slate-400 text-sm font-medium">{unit}</span>
+        </div>
+        <div className="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div className={`h-full ${color} opacity-20`} style={{ width: '100%' }}></div>
         </div>
     </div>
 );

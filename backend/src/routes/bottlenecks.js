@@ -3,6 +3,7 @@ const router = express.Router();
 const controller = require('../controllers/bottleneckController');
 
 router.get('/', controller.getBottlenecks);
+router.get('/stats', controller.getBottleneckStats);
 router.get('/:id', controller.getBottleneckById);
 router.post('/analyze', controller.analyzeBottlenecks);
 

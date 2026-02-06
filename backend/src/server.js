@@ -17,14 +17,20 @@ const regressionRoutes = require('./routes/regressions');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-  cors: { origin: '*' }
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
 });
 
 // Connect to Database
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true
+}));
 app.use(express.json());
 
 // Attach IO to request & Track Performance
@@ -51,15 +57,49 @@ app.use((req, res, next) => {
         await m.save();
         io.emit('metric:update', m);
 
+        // Rule-based Bottleneck Detection (Goal: responseTime > 500ms -> bottleneck)
+        if (duration > 500) {
+          const Bottleneck = require('./models/Bottleneck');
+          const aiService = require('./services/aiService');
+          const bData = {
+            type: 'code',
+            severity: 'high',
+            location: req.path,
+            description: `API endpoint ${req.path} responding slowly (${duration}ms)`,
+          };
+          const explanation = await aiService.explainBottleneck(bData);
+          const bottleneck = new Bottleneck({
+            ...bData,
+            service: 'api-gateway',
+            status: 'new',
+            aiSuggestions: explanation.suggestions
+          });
+          await bottleneck.save();
+          io.emit('bottleneck:detected', bottleneck);
+        }
+
+        // Capture Query (Stub)
+        if (req.path.includes('/api/')) {
+          const Query = require('./models/Query');
+          const queryCapture = new Query({
+            queryText: `Captured from ${req.path}`,
+            database: 'host-system',
+            executionTime: duration,
+            isOptimized: duration < 100
+          });
+          await queryCapture.save();
+          if (req.io) req.io.emit('query:analyzed', queryCapture);
+        }
         // Automated "Slow Query" detection for API
         if (duration > 200) {
           const Query = require('./models/Query');
           try {
             const q = new Query({
-              query: `API Request: ${req.method} ${req.path}`,
+              queryText: `API Request: ${req.method} ${req.path}`,
+              database: 'api-gateway-logs',
               executionTime: duration,
               rowsAffected: 0,
-              optimizationSuggestions: ['Check endpoint logic', 'Optimize database calls for this route']
+              optimizationSuggestions: [{ type: 'Performance', suggestion: 'Check endpoint logic', potentialImprovement: 20 }]
             });
             await q.save();
             io.emit('query:analyzed', q);
@@ -67,6 +107,7 @@ app.use((req, res, next) => {
             // silent fail
           }
         }
+
         // Automated Code Profiling Logic
         if (duration > 100) {
           const Profile = require('./models/Profile');
@@ -99,6 +140,16 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// Health Check for Render/Cloud
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    dbConnected: require('mongoose').connection.readyState === 1
+  });
 });
 
 // Routes
@@ -139,11 +190,14 @@ setInterval(async () => {
       // Automated Bottleneck Detection
       if (bottlenecks && bottlenecks.length > 0) {
         const Bottleneck = require('./models/Bottleneck');
+        const aiService = require('./services/aiService');
         for (const b of bottlenecks) {
+          const explanation = await aiService.explainBottleneck(b);
           const bottleneck = new Bottleneck({
             ...b,
             service: 'host-system',
-            status: 'new'
+            status: 'new',
+            aiSuggestions: explanation.suggestions
           });
           await bottleneck.save();
           io.emit('bottleneck:detected', bottleneck);
@@ -162,14 +216,23 @@ setInterval(async () => {
 
         if (latestAvg > avgResponseTime * 1.5) { // 50% degradation
           const Regression = require('./models/Regression');
-          const regression = new Regression({
+          const aiService = require('./services/aiService');
+
+          const regressionData = {
             service: 'api-gateway',
             metric: 'responseTime',
             baseline: { value: Math.round(avgResponseTime), timestamp: recentMetrics[19].createdAt },
             current: { value: Math.round(latestAvg), timestamp: new Date() },
-            degradation: { percentage: Math.round(((latestAvg - avgResponseTime) / avgResponseTime) * 100) },
-            possibleCauses: [{ type: 'Traffic', description: 'Real-time traffic spike detected', confidence: 0.7 }]
+            degradation: { percentage: Math.round(((latestAvg - avgResponseTime) / avgResponseTime) * 100) }
+          };
+
+          const analysis = await aiService.analyzeRegression(regressionData);
+
+          const regression = new Regression({
+            ...regressionData,
+            possibleCauses: analysis.suggestions.map(s => ({ type: 'AI-Suggestion', description: s, confidence: 0.8 }))
           });
+
           await regression.save();
           io.emit('regression:detected', regression);
         }
