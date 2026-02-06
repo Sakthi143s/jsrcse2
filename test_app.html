@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Test Monitored App</title>
+        <!-- AI Performance Monitoring Agent -->
+        <script src="http://localhost:5006/agent.js" async></script>
+    </head>
+
+    <body style="font-family: sans-serif; padding: 40px; text-align: center; background: #f0f4f8;">
+        <h1 style="color: #1a202c;">🚀 Test Monitored Web App</h1>
+        <p style="color: #4a5568;">This page is currently being monitored by the AI Performance Suite.</p>
+
+        <div style="margin-top: 40px; display: flex; gap: 10px; justify-content: center;">
+            <button onclick="triggerError()"
+                style="padding: 10px 20px; background: #e53e3e; color: white; border: none; rounded: 8px; cursor: pointer;">
+                Trigger JS Error
+            </button>
+            <button onclick="location.reload()"
+                style="padding: 10px 20px; background: #3182ce; color: white; border: none; rounded: 8px; cursor: pointer;">
+                Reload Page (Capture Load Time)
+            </button>
+        </div>
+
+        <script>
+            function triggerError() {
+                console.log('Triggering intentional error...');
+                throw new Error('Test monitoring error at ' + new Date().toLocaleTimeString());
+            }
+        </script>
+    </body>
+
+</html>

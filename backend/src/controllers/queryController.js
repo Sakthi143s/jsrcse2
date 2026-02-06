@@ -16,27 +16,27 @@ exports.analyzeQuery = async (req, res) => {
             return res.status(400).json({ error: 'Real execution data required' });
         }
 
-        let suggestions = [];
-        if (executionTime > 500) {
-            suggestions.push({ type: 'Critical', suggestion: 'Query is extremely slow. Check for missing indexes on filter columns.', potentialImprovement: 80 });
-            suggestions.push({ type: 'Optimization', suggestion: 'Consider using a materialized view or caching this result.', potentialImprovement: 50 });
-        } else if (executionTime > 200) {
-            suggestions.push({ type: 'Warning', suggestion: 'Query performance is sub-optimal. Review join conditions.', potentialImprovement: 30 });
-        }
+        const intelligenceService = require('../services/intelligenceService');
+        const aiService = require('../services/aiService');
 
-        if (queryText.toLowerCase().includes('select *')) {
-            suggestions.push({ type: 'Best Practice', suggestion: 'Avoid using SELECT *. Specify only the columns you need.', potentialImprovement: 20 });
-        }
+        const patterns = intelligenceService.detectQueryPatterns(queryText);
+        const optimizationResult = await aiService.suggestQueryOptimization({ queryText, executionTime });
 
-        if (queryText.toLowerCase().includes('join') && !queryText.toLowerCase().includes('on')) {
-            suggestions.push({ type: 'Error', suggestion: 'Join without proper ON condition detected.', potentialImprovement: 90 });
-        }
+        const suggestions = patterns.map(p => ({
+            type: 'Intelligent-Scanner',
+            suggestion: p.suggestion,
+            potentialImprovement: 40
+        })).concat(optimizationResult.suggestions.map(s => ({
+            type: 'AI-Guided',
+            suggestion: s,
+            potentialImprovement: 30
+        })));
 
         const newQuery = new Query({
             queryText,
             database: database || 'Laptop-OS',
             executionTime,
-            isOptimized: executionTime < 100 && suggestions.length === 0,
+            isOptimized: executionTime < 100 && patterns.length === 0,
             optimizationSuggestions: suggestions
         });
         await newQuery.save();

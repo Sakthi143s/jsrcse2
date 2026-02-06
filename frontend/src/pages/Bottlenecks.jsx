@@ -46,29 +46,36 @@ const Bottlenecks = () => {
         }
     };
 
-    if (loading) return <div>Loading...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+                <div className="w-12 h-12 border-2 border-nvidia-green border-t-transparent rounded-full animate-spin mx-auto mb-4 shadow-[0_0_15px_#76B900]"></div>
+                <p className="text-nvidia-green font-black uppercase tracking-widest text-[10px]">Scanning Flows...</p>
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-end justify-between border-b border-nvidia-gray/50 pb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <AlertTriangle className="text-orange-500" />
-                        Bottleneck Detection
+                    <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase flex items-center gap-2">
+                        <AlertTriangle className="text-nvidia-green" size={28} />
+                        Bottleneck <span className="text-nvidia-green">Analysis</span>
                     </h1>
-                    <p className="text-slate-500">AI-powered tracking of performance bottlenecks.</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">AI-Powered Anomaly Detection</p>
                 </div>
 
                 <button
                     onClick={triggerAnalysis}
                     disabled={analyzing}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${analyzing
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                    className={`flex items-center gap-2 px-6 py-2 rounded-sm font-black uppercase tracking-tighter transition-all italic ${analyzing
+                        ? 'bg-nvidia-gray text-slate-500 cursor-not-allowed border border-white/5'
+                        : 'bg-nvidia-green text-nvidia-black hover:bg-white hover:text-nvidia-black shadow-[0_0_15px_rgba(118,185,0,0.3)]'
                         }`}
                 >
                     <RefreshCw size={18} className={analyzing ? 'animate-spin' : ''} />
-                    {analyzing ? 'Scanning...' : 'Scan System Now'}
+                    {analyzing ? 'EXECUTING SCAN...' : 'TRIGGER AI PROBE'}
                 </button>
             </div>
 

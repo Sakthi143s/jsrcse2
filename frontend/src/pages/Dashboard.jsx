@@ -4,6 +4,7 @@ import socket from '../services/websocket';
 import PerformanceMetrics from '../components/dashboard/PerformanceMetrics';
 import MetricsChart from '../components/dashboard/MetricsChart';
 import ActivityFeed from '../components/dashboard/ActivityFeed';
+import { Shield } from 'lucide-react';
 
 const Dashboard = () => {
     const [metrics, setMetrics] = useState([]);
@@ -66,18 +67,25 @@ const Dashboard = () => {
         }
     };
 
-    if (loading) return <div>Loading...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+                <div className="w-12 h-12 border-2 border-nvidia-green border-t-transparent rounded-full animate-spin mx-auto mb-4 shadow-[0_0_15px_#76B900]"></div>
+                <p className="text-nvidia-green font-black uppercase tracking-widest text-[10px]">Initializing Engine...</p>
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="flex justify-between items-end mb-8 border-b border-nvidia-gray/50 pb-6">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">System Performance Core</h1>
-                    <p className="text-slate-500 font-medium mt-1">Real-time AI-powered monitoring and optimization suite.</p>
+                    <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase">AI Performance <span className="text-nvidia-green font-black">Monitoring</span></h1>
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.3em] mt-1">AI-Powered Performance Engine</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest px-4 py-2 bg-white rounded-full border border-slate-100 shadow-sm">
-                        Instance: Host-Laptop-01
+                    <span className="text-[9px] font-black text-nvidia-green uppercase tracking-widest px-4 py-2 bg-nvidia-gray rounded-sm border border-nvidia-green/30 shadow-[0_0_10px_rgba(118,185,0,0.1)]">
+                        NODE: HOST-LPTP-01 // ACTIVE
                     </span>
                 </div>
             </div>

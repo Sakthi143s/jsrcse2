@@ -9,7 +9,11 @@ const MetricSchema = new mongoose.Schema({
     cpuUsage: { type: Number },
     memoryUsage: { type: Number },
     requestCount: { type: Number },
-    errorRate: { type: Number }
+    errorRate: { type: Number },
+    domReady: { type: Number },
+    lcp: { type: Number },
+    cls: { type: Number },
+    fid: { type: Number }
   },
   tags: [{ type: String }],
   metadata: { type: Map, of: mongoose.Schema.Types.Mixed }

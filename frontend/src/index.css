@@ -1,6 +1,39 @@
 @import "tailwindcss";
 
+@theme {
+  --color-nvidia-green: #76B900;
+  --color-nvidia-black: #000000;
+  --color-nvidia-slate: #1A1A1A;
+  --color-nvidia-gray: #2B2B2B;
+
+  --shadow-nvidia-glow: 0 0 15px rgba(118, 185, 0, 0.3);
+}
+
+body {
+  @apply bg-nvidia-black text-white antialiased;
+}
+
 /* Custom Utilities */
 .card-hover {
-  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  @apply transition-all duration-300 hover:shadow-nvidia-glow hover:-translate-y-1;
+}
+
+.glass-card {
+  @apply bg-nvidia-slate/80 backdrop-blur-md border border-white/10 rounded-2xl;
+}
+
+.skewed-label {
+  clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-nvidia-black;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-nvidia-gray rounded-full hover:bg-nvidia-green;
 }

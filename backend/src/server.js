@@ -2,17 +2,33 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const socketHandler = require('./websocket/socketHandler');
 
+// Intelligence & AI Services
+const intelligenceService = require('./services/intelligenceService');
+const aiService = require('./services/aiService');
+const metricBatcher = require('./services/metricBatcher');
+
+// Models
+const Metric = require('./models/Metric');
+const Bottleneck = require('./models/Bottleneck');
+const Query = require('./models/Query');
+const Profile = require('./models/Profile');
+const Regression = require('./models/Regression');
+
+// Routes
 const metricsRoutes = require('./routes/metrics');
 const bottleneckRoutes = require('./routes/bottlenecks');
 const queryRoutes = require('./routes/queries');
 const profilingRoutes = require('./routes/profiling');
 const regressionRoutes = require('./routes/regressions');
+
+const { getRealMetrics } = require('./utils/systemMetrics');
 
 const app = express();
 const server = http.createServer(app);
@@ -26,6 +42,7 @@ const io = socketIo(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Attach IO to request & Track Performance
 app.use((req, res, next) => {
@@ -35,9 +52,8 @@ app.use((req, res, next) => {
   res.on('finish', async () => {
     const duration = Date.now() - start;
     if (req.path.startsWith('/api')) {
-      const Metric = require('./models/Metric');
       try {
-        const m = new Metric({
+        const mData = {
           service: 'api-gateway',
           endpoint: req.path,
           metrics: {
@@ -47,84 +63,93 @@ app.use((req, res, next) => {
             errorRate: res.statusCode >= 400 ? 100 : 0
           },
           tags: ['auto-captured', req.method]
-        });
-        await m.save();
-        io.emit('metric:update', m);
+        };
 
-        // Rule-based Bottleneck Detection (Goal: responseTime > 500ms -> bottleneck)
-        if (duration > 500) {
-          const Bottleneck = require('./models/Bottleneck');
-          const aiService = require('./services/aiService');
-          const bData = {
-            type: 'code',
-            severity: 'high',
-            location: req.path,
-            description: `API endpoint ${req.path} responding slowly (${duration}ms)`,
-          };
-          const explanation = await aiService.explainBottleneck(bData);
-          const bottleneck = new Bottleneck({
-            ...bData,
-            service: 'api-gateway',
-            status: 'new',
-            aiSuggestions: explanation.suggestions
-          });
-          await bottleneck.save();
-          io.emit('bottleneck:detected', bottleneck);
-        }
+        // Use Batcher instead of direct save to avoid MongoDB saturation during high traffic
+        metricBatcher.add(mData);
+        io.emit('metric:update', { ...mData, createdAt: new Date() });
 
-        // Capture Query (Stub)
-        if (req.path.includes('/api/')) {
-          const Query = require('./models/Query');
-          const queryCapture = new Query({
-            queryText: `Captured from ${req.path}`,
-            database: 'host-system',
-            executionTime: duration,
-            isOptimized: duration < 100
-          });
-          await queryCapture.save();
-          if (req.io) req.io.emit('query:analyzed', queryCapture);
-        }
-        // Automated "Slow Query" detection for API
-        if (duration > 200) {
-          const Query = require('./models/Query');
+        // Update Adaptive Baseline
+        intelligenceService.updateBaseline('api_latency', duration);
+
+        // Intelligent Anomaly Detection
+        if (intelligenceService.isAnomaly('api_latency', duration)) {
           try {
-            const q = new Query({
-              queryText: `API Request: ${req.method} ${req.path}`,
-              database: 'api-gateway-logs',
-              executionTime: duration,
-              rowsAffected: 0,
-              optimizationSuggestions: [{ type: 'Performance', suggestion: 'Check endpoint logic', potentialImprovement: 20 }]
+            const lastSystemMetric = await Metric.findOne({ service: 'local-laptop' }).sort({ createdAt: -1 });
+            const correlation = intelligenceService.correlate(duration, lastSystemMetric?.metrics?.cpuUsage || 0);
+
+            const bData = {
+              type: correlation?.type === 'HOST_SATURATION' ? 'cpu' : 'code',
+              severity: 'high',
+              location: { file: 'server.js', function: req.path },
+              description: correlation?.description || `Significant API latency spike detected: ${duration}ms`,
+            };
+
+            const explanation = await aiService.explainBottleneck(bData);
+            const bottleneck = new Bottleneck({
+              ...bData,
+              service: 'api-gateway',
+              status: 'open',
+              aiSuggestions: explanation.suggestions
             });
-            await q.save();
-            io.emit('query:analyzed', q);
+            try {
+              await bottleneck.save();
+            } catch (e) { console.warn("[DB] Bottleneck save skipped:", e.message); }
+            io.emit('bottleneck:detected', bottleneck);
           } catch (err) {
-            // silent fail
+            console.error('Intelligent capture failed:', err);
           }
         }
 
-        // Automated Code Profiling Logic
-        if (duration > 100) {
-          const Profile = require('./models/Profile');
+        // Automatic Query Optimization logic
+        if (req.path.includes('/api/')) {
+          try {
+            const queryPatterns = intelligenceService.detectQueryPatterns(`REST API: ${req.method} ${req.path}`);
+            if (queryPatterns.length > 0 || duration > 200) {
+              const q = new Query({
+                queryText: `REST API: ${req.method} ${req.path}`,
+                database: 'app-main-db',
+                executionTime: duration,
+                rowsAffected: 0,
+                isOptimized: queryPatterns.length === 0 && duration < 100,
+                optimizationSuggestions: queryPatterns.map(p => ({
+                  type: 'Intelligent-Scanner',
+                  suggestion: p.suggestion,
+                  potentialImprovement: 40
+                }))
+              });
+              try {
+                await q.save();
+              } catch (e) { console.warn("[DB] Query save skipped:", e.message); }
+              io.emit('query:analyzed', q);
+            }
+          } catch (err) {
+            console.error('Query analysis failed:', err);
+          }
+        }
+
+        // Segmented Code Profiling
+        if (duration > 50) {
           try {
             const p = new Profile({
               service: 'api-gateway',
               duration: duration,
               profileData: {
                 functions: [
-                  { name: `Handler: ${req.path}`, file: 'api_gateway.js', selfTime: duration - 10, totalTime: duration, calls: 1 }
+                  { name: `Handler: ${req.path}`, file: 'server.js', selfTime: Math.round(duration * 0.8), totalTime: duration, calls: 1 },
+                  { name: `Middleware: PerfTracker`, file: 'server.js', selfTime: Math.round(duration * 0.1), totalTime: duration, calls: 1 },
+                  { name: `DB: DriverInternal`, file: 'mongodb.node', selfTime: Math.round(duration * 0.1), totalTime: duration, calls: 1 }
                 ]
               },
-              summary: {
-                totalFunctions: 1,
-                hottestFunction: `Handler: ${req.path}`,
-                totalSamples: duration * 10
-              },
-              tags: ['real-time', 'perf-capture']
+              summary: { totalFunctions: 3, hottestFunction: `Handler: ${req.path}`, totalSamples: duration * 10 },
+              tags: ['auto-profile', 'trace-segment']
             });
-            await p.save();
+            try {
+              await p.save();
+            } catch (e) { console.warn("[DB] Profile save skipped:", e.message); }
             io.emit('profile:created', p);
           } catch (err) {
-            // silent fail
+            console.error('Profile capture failed:', err);
           }
         }
       } catch (err) {
@@ -132,135 +157,190 @@ app.use((req, res, next) => {
       }
     }
   });
-
   next();
 });
 
-// Health Check for Render/Cloud
+// Real-Time Scenario Simulator (for User Verification)
+app.post('/api/simulate/:scenario', async (req, res) => {
+  const scenario = req.params.scenario.toLowerCase();
+  console.log(`[Simulator] Received request for scenario: ${scenario}`);
+  let result = { message: `Simulating ${scenario}...` };
+
+  try {
+    switch (scenario) {
+      case 'latency-spike':
+        // 1. Manually trigger a bottleneck detection flow
+        const bData = {
+          type: 'code',
+          severity: 'high',
+          location: { file: 'SimulatedEnvironment.js', function: 'heavyComputeTask' },
+          description: `Simulated Latency Spike detected: 2500ms`,
+        };
+        const explanation = await aiService.explainBottleneck(bData);
+        const bottleneck = new Bottleneck({
+          ...bData,
+          service: 'api-gateway-sim',
+          status: 'open',
+          aiSuggestions: explanation.suggestions
+        });
+        try {
+          await bottleneck.save();
+        } catch (e) { console.warn("[Simulator] Bottleneck save skipped:", e.message); }
+        io.emit('bottleneck:detected', bottleneck);
+        result.details = "Bottleneck event emitted with AI suggestions.";
+        break;
+
+      case 'unoptimized-query':
+        const queryPatterns = intelligenceService.detectQueryPatterns("SELECT * FROM users JOIN orders JOIN products");
+        const q = new Query({
+          queryText: "SELECT * FROM users JOIN orders JOIN products",
+          database: "simulated-db",
+          executionTime: 450,
+          rowsAffected: 1000,
+          isOptimized: false,
+          optimizationSuggestions: queryPatterns.map(p => ({
+            type: 'Intelligent-Scanner',
+            suggestion: p.suggestion,
+            potentialImprovement: 70
+          }))
+        });
+        try {
+          await q.save();
+        } catch (e) { console.warn("[Simulator] Query save skipped:", e.message); }
+        io.emit('query:analyzed', q);
+        result.details = "Slow query event emitted with pattern analysis.";
+        break;
+
+      case 'regression':
+        const regressionData = {
+          service: 'api-gateway',
+          metric: 'responseTime',
+          baseline: { value: 120, timestamp: new Date(Date.now() - 86400000) },
+          current: { value: 650, timestamp: new Date() },
+          degradation: { percentage: 440 }
+        };
+        const analysis = await aiService.analyzeRegression(regressionData);
+        const regression = new Regression({
+          ...regressionData,
+          possibleCauses: analysis.suggestions.map(s => ({ type: 'AI-Suggestion', description: s, confidence: 0.95 }))
+        });
+        try {
+          await regression.save();
+        } catch (e) { console.warn("[Simulator] Regression save skipped:", e.message); }
+        io.emit('regression:detected', regression);
+        result.details = "Regression event emitted with AI root cause analysis.";
+        break;
+
+      case 'profile':
+        const p = new Profile({
+          service: 'api-gateway-sim',
+          duration: 1200,
+          profileData: {
+            functions: [
+              { name: "HeavyCryptoOperation", file: "auth.js", selfTime: 950, totalTime: 1200, calls: 1 },
+              { name: "DatabaseHandshake", file: "db.js", selfTime: 200, totalTime: 250, calls: 1 },
+              { name: "MiddlewareStack", file: "server.js", selfTime: 50, totalTime: 1200, calls: 1 }
+            ]
+          },
+          summary: {
+            totalFunctions: 3,
+            hottestFunction: "HeavyCryptoOperation",
+            totalSamples: 12000
+          },
+          tags: ['simulated-trace', 'high-priority']
+        });
+        try {
+          await p.save();
+        } catch (e) { console.warn("[Simulator] Profile save skipped:", e.message); }
+        io.emit('profile:created', p);
+        result.details = "Detailed code profile emitted for analysis.";
+        break;
+      case 'host-bottleneck':
+        const hData = {
+          type: 'cpu',
+          severity: 'critical',
+          location: { file: 'Host Laptop', function: 'Background Task' },
+          description: `Machine-level CPU saturation: 98% usage detected.`,
+        };
+        const hExplanation = await aiService.explainBottleneck(hData);
+        const hBottleneck = new Bottleneck({
+          ...hData,
+          service: 'host-system',
+          status: 'open',
+          aiSuggestions: hExplanation.suggestions
+        });
+        try {
+          await hBottleneck.save();
+        } catch (e) { console.warn("[Simulator] Host bottleneck save skipped:", e.message); }
+        io.emit('bottleneck:detected', hBottleneck);
+        result.details = "Host-level bottleneck with critical severity emitted.";
+        break;
+
+      default:
+        console.log(`[Simulator] Error: Scenario '${scenario}' not matched.`);
+        return res.status(404).json({ error: 'Scenario not found' });
+    }
+    res.json(result);
+  } catch (err) {
+    console.error('Simulation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Health & Routes
 app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    dbConnected: require('mongoose').connection.readyState === 1
-  });
+  res.status(200).json({ status: 'ok', uptime: process.uptime(), dbConnected: require('mongoose').connection.readyState === 1 });
 });
+app.get('/', (req, res) => res.send('Intelligent Platform API Running.'));
 
-app.get('/', (req, res) => {
-  res.send('AI Performance Optimization Suite API is running. Visit /health for status.');
-});
-
-// Routes
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/bottlenecks', bottleneckRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/profiles', profilingRoutes);
 app.use('/api/regressions', regressionRoutes);
 
-// WebSocket
 socketHandler(io);
 
-const { getRealMetrics } = require('./utils/systemMetrics');
-const Metric = require('./models/Metric');
-
-// Start Real-time System Monitoring Loop
+// Real-time System Monitoring Loop
 setInterval(async () => {
   const data = await getRealMetrics();
   if (data) {
     const { metrics, bottlenecks } = data;
     io.emit('system:metrics', metrics);
-
     try {
-      const systemMetric = new Metric({
+      const sData = {
         service: 'local-laptop',
         endpoint: 'system-monitor',
-        metrics: {
-          cpuUsage: metrics.cpuUsage,
-          memoryUsage: metrics.memoryUsage,
-          responseTime: metrics.loadAverage || 0,
-          errorRate: 0
-        },
+        metrics: { cpuUsage: metrics.cpuUsage, memoryUsage: metrics.memoryUsage, responseTime: metrics.loadAverage || 0, errorRate: 0 },
         tags: ['real-time', 'host-metrics']
-      });
-      await systemMetric.save();
-      io.emit('metric:update', systemMetric);
+      };
 
-      // Automated Bottleneck Detection
+      // Use Batcher here too
+      metricBatcher.add(sData);
+      io.emit('metric:update', { ...sData, createdAt: new Date() });
+
       if (bottlenecks && bottlenecks.length > 0) {
-        const Bottleneck = require('./models/Bottleneck');
-        const aiService = require('./services/aiService');
         for (const b of bottlenecks) {
           const explanation = await aiService.explainBottleneck(b);
-          const bottleneck = new Bottleneck({
-            ...b,
-            service: 'host-system',
-            status: 'new',
-            aiSuggestions: explanation.suggestions
-          });
-          await bottleneck.save();
+          const bottleneck = new Bottleneck({ ...b, type: b.type.toLowerCase(), service: 'host-system', status: 'open', aiSuggestions: explanation.suggestions });
+          try {
+            await bottleneck.save();
+          } catch (e) { console.warn("[Loop] Bottleneck save skipped:", e.message); }
           io.emit('bottleneck:detected', bottleneck);
         }
       }
-
-      // Automated Regression Detection
-      const recentMetrics = await Metric.find({ service: 'api-gateway' })
-        .sort({ createdAt: -1 })
-        .limit(20);
-
-      if (recentMetrics.length >= 10) {
-        const avgResponseTime = recentMetrics.reduce((sum, m) => sum + m.metrics.responseTime, 0) / recentMetrics.length;
-        const latestMetrics = recentMetrics.slice(0, 3);
-        const latestAvg = latestMetrics.reduce((sum, m) => sum + m.metrics.responseTime, 0) / latestMetrics.length;
-
-        if (latestAvg > avgResponseTime * 1.5) { // 50% degradation
-          const Regression = require('./models/Regression');
-          const aiService = require('./services/aiService');
-
-          const regressionData = {
-            service: 'api-gateway',
-            metric: 'responseTime',
-            baseline: { value: Math.round(avgResponseTime), timestamp: recentMetrics[19].createdAt },
-            current: { value: Math.round(latestAvg), timestamp: new Date() },
-            degradation: { percentage: Math.round(((latestAvg - avgResponseTime) / avgResponseTime) * 100) }
-          };
-
-          const analysis = await aiService.analyzeRegression(regressionData);
-
-          const regression = new Regression({
-            ...regressionData,
-            possibleCauses: analysis.suggestions.map(s => ({ type: 'AI-Suggestion', description: s, confidence: 0.8 }))
-          });
-
-          await regression.save();
-          io.emit('regression:detected', regression);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to process real-time analysis:', err);
-    }
+    } catch (err) { console.error('Real-time loop error:', err); }
   }
-}, 10000); // Every 10 seconds (reduced from 3s to avoid overwhelming free-tier DB)
+}, 10000);
 
-// Error Handler
 app.use(errorHandler);
-
-// Start server
 const PORT = process.env.PORT || 5006;
 const startServer = async () => {
   try {
-    await connectDB();   // wait for Mongo
-
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-
-  } catch (err) {
-    console.error("Server startup failed ❌", err);
-  }
+    await connectDB();
+    server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+  } catch (err) { console.error("Startup failed:", err); }
 };
-
 startServer();
-
-// Render/Cloud Stability: Increase timeouts to prevent intermittent 502s
 server.keepAliveTimeout = 120000;
 server.headersTimeout = 125000;

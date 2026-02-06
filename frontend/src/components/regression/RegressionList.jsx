@@ -4,51 +4,69 @@ import { format } from 'date-fns';
 
 const RegressionCard = ({ regression }) => {
     return (
-        <div className="p-5 mb-4 rounded-lg shadow-sm bg-white border border-red-100 border-l-4 border-l-red-500">
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-700">{regression.service}</h3>
-                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                        {regression.metric}
+        <div className="p-6 mb-6 rounded-sm glass-card border-l-2 border-l-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all">
+            <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-500/10 rounded-sm">
+                        <TrendingDown className="text-red-500" size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-black text-white italic tracking-tighter uppercase text-lg leading-tight">{regression.service}</h3>
+                        <span className="text-[9px] font-black text-red-500/80 uppercase tracking-widest">Performance Regression Stream</span>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <span className="text-[10px] font-black text-slate-500 flex items-center gap-1 justify-end uppercase tracking-widest">
+                        <Clock size={12} /> {format(new Date(regression.timestamp || regression.createdAt || regression.detectedAt), 'MMM d, HH:mm')}
+                    </span>
+                    <span className="inline-block mt-1 px-2 py-0.5 rounded-sm text-[9px] font-black bg-red-500 text-white uppercase tracking-tighter">
+                        {regression.metric} Degradation
                     </span>
                 </div>
-                <span className="text-xs text-slate-500 flex items-center gap-1">
-                    <Clock size={12} /> {format(new Date(regression.detectedAt), 'MMM d, HH:mm')}
-                </span>
             </div>
 
-            <div className="flex items-center gap-4 mb-4 bg-red-50 p-4 rounded-lg">
+            <div className="grid grid-cols-3 gap-4 mb-6 bg-nvidia-black/50 p-5 rounded-md border border-white/5 relative overflow-hidden">
                 <div className="text-center">
-                    <div className="text-xs text-slate-500 mb-1">Baseline</div>
-                    <div className="font-mono font-medium text-slate-700">{regression.baseline.value}ms</div>
+                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Baseline</div>
+                    <div className="font-mono text-lg font-black text-slate-400 italic">{regression.baseline.value}ms</div>
                 </div>
-                <ArrowRight className="text-red-400" size={20} />
+                <div className="flex items-center justify-center">
+                    <ArrowRight className="text-nvidia-green/40" size={24} />
+                </div>
                 <div className="text-center">
-                    <div className="text-xs text-slate-500 mb-1">Current</div>
-                    <div className="font-mono font-bold text-red-600">{regression.current.value}ms</div>
+                    <div className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Critical</div>
+                    <div className="font-mono text-xl font-black text-red-500 shadow-red-500/20 drop-shadow-sm">{regression.current.value}ms</div>
                 </div>
-                <div className="ml-auto text-right">
-                    <div className="text-2xl font-bold text-red-600">+{regression.degradation.percentage}%</div>
-                    <div className="text-xs text-red-400">Degradation</div>
+                <div className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-black px-4 py-1 shadow-lg skewed-label">
+                    +{regression.degradation.percentage}% DELTA
                 </div>
             </div>
 
             {regression.possibleCauses?.length > 0 && (
-                <div className="text-sm">
-                    <h4 className="font-semibold text-slate-700 mb-2 flex items-center gap-1">
-                        <AlertCircle size={14} className="text-orange-500" /> Possible Causes
+                <div className="space-y-3">
+                    <h4 className="text-[9px] font-black text-nvidia-green uppercase tracking-[0.2em] flex items-center gap-2">
+                        <AlertCircle size={12} /> AI ROOT CAUSE DIAGNOSTICS
                     </h4>
-                    <ul className="space-y-1">
+                    <div className="grid grid-cols-1 gap-2">
                         {regression.possibleCauses.map((cause, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-slate-600">
-                                <span className="mt-1.5 w-1 h-1 rounded-full bg-slate-400"></span>
-                                <span>
-                                    <span className="font-medium">{cause.type}:</span> {cause.description}
-                                    <span className="text-xs text-slate-400 ml-1">({cause.confidence * 100}%)</span>
-                                </span>
-                            </li>
+                            <div key={idx} className="flex items-start gap-4 bg-white/5 border border-white/5 p-4 rounded-sm transition-hover hover:bg-white/10">
+                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_5px_#EF4444] shrink-0" />
+                                <div className="flex-1">
+                                    <p className="text-[11px] text-white font-bold leading-tight mb-2 italic">"{cause.description}"</p>
+                                    <div className="w-full bg-nvidia-gray h-1 rounded-full overflow-hidden">
+                                        <div
+                                            className="bg-nvidia-green h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_#76B900]"
+                                            style={{ width: `${(cause.confidence || 0.8) * 100}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between mt-1">
+                                        <span className="text-[8px] font-black text-slate-500 uppercase">AI Confidence Probe</span>
+                                        <span className="text-[8px] font-black text-nvidia-green uppercase tracking-widest">{Math.round((cause.confidence || 0.8) * 100)}% Match</span>
+                                    </div>
+                                </div>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 </div>
             )}
         </div>
@@ -58,12 +76,12 @@ const RegressionCard = ({ regression }) => {
 const RegressionList = ({ regressions }) => {
     if (regressions.length === 0) {
         return (
-            <div className="text-center py-12 bg-white rounded-xl border border-slate-100">
-                <div className="bg-green-100 p-4 rounded-full inline-block mb-4">
-                    <TrendingDown className="text-green-600" size={32} />
+            <div className="text-center py-12 glass-card border-dashed">
+                <div className="bg-nvidia-green/10 p-4 rounded-full inline-block mb-4">
+                    <TrendingDown className="text-nvidia-green" size={32} />
                 </div>
-                <h3 className="text-lg font-medium text-slate-700">No Regressions Detected</h3>
-                <p className="text-slate-500">System performance is stable across all services.</p>
+                <h3 className="text-sm font-black text-white italic uppercase tracking-tighter">Flow Stable</h3>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">No trajectory deviations</p>
             </div>
         );
     }
