@@ -3,7 +3,8 @@ const http = require('http');
 // Configuration
 const CONCURRENCY = 50; // Number of concurrent requests
 const DURATION_MS = 10000; // Duration of test in ms
-const API_URL = 'http://127.0.0.1:5006/api/metrics';
+const API_URL = 'https://jsrcse2.onrender.com/api/metrics';
+
 
 
 const metrics = {

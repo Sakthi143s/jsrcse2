@@ -1,9 +1,18 @@
 (function () {
-    const BACKEND_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://127.0.0.1:5006' : ''; // Fallback to current origin if relative
-    const API_ENDPOINT = BACKEND_URL + '/api/metrics';
-    const APP_NAME = window.location.hostname;
 
-    console.log('🚀 AI Performance Monitoring Agent Initialized for:', APP_NAME);
+  const IS_LOCAL =
+    window.location.origin.includes('localhost') ||
+    window.location.origin.includes('127.0.0.1');
+
+  const BACKEND_URL = IS_LOCAL
+    ? 'http://127.0.0.1:5006'
+    : 'https://jsrcse2.onrender.com';   // your LIVE backend
+
+  const API_ENDPOINT = BACKEND_URL + '/api/metrics';
+  const APP_NAME = window.location.hostname;
+
+  console.log('🚀 AI Performance Monitoring Agent Initialized for:', APP_NAME);
+
 
     function sendMetric(data) {
         const body = JSON.stringify({
