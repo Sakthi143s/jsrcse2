@@ -1,0 +1,14 @@
+{
+    "name": "ai-perf-suite-root",
+    "version": "1.0.0",
+    "scripts": {
+        "start:docker": "docker-compose up --build",
+        "stop:docker": "docker-compose down",
+        "install:all": "npm install --prefix backend && npm install --prefix frontend",
+        "start:local": "concurrently \"npm start --prefix backend\" \"npm run dev --prefix frontend\"",
+        "stop:local": "taskkill /F /IM node.exe"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
