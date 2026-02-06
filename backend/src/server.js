@@ -23,9 +23,6 @@ const io = socketIo(server, {
   }
 });
 
-// Connect to Database
-connectDB();
-
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -249,9 +246,15 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5006;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT} (bound to 0.0.0.0)`);
-});
+const startServer = async () => {
+  await connectDB();
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer();
 
 // Render/Cloud Stability: Increase timeouts to prevent intermittent 502s
 server.keepAliveTimeout = 120000;
