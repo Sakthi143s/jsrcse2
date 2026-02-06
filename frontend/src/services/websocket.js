@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const socket = io(import.meta.env.VITE_SOCKET_URL || undefined, {
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5006', {
     path: '/socket.io',
     transports: ['websocket'],
     autoConnect: true,
