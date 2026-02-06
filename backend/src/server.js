@@ -27,9 +27,35 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
-// Attach IO to request
+// Attach IO to request & Track Performance
 app.use((req, res, next) => {
+  const start = Date.now();
   req.io = io;
+
+  res.on('finish', async () => {
+    const duration = Date.now() - start;
+    if (req.path.startsWith('/api')) {
+      const Metric = require('./models/Metric');
+      try {
+        const m = new Metric({
+          service: 'api-gateway',
+          endpoint: req.path,
+          metrics: {
+            responseTime: duration,
+            cpuUsage: 0,
+            memoryUsage: 0,
+            errorRate: res.statusCode >= 400 ? 100 : 0
+          },
+          tags: ['auto-captured', req.method]
+        });
+        await m.save();
+        io.emit('metric:update', m);
+      } catch (err) {
+        // silent fail for metrics
+      }
+    }
+  });
+
   next();
 });
 
@@ -43,11 +69,40 @@ app.use('/api/regressions', regressionRoutes);
 // WebSocket
 socketHandler(io);
 
+const { getRealMetrics } = require('./utils/systemMetrics');
+const Metric = require('./models/Metric');
+
+// Start Real-time System Monitoring Loop
+setInterval(async () => {
+  const metrics = await getRealMetrics();
+  if (metrics) {
+    io.emit('system:metrics', metrics);
+
+    try {
+      const systemMetric = new Metric({
+        service: 'local-laptop',
+        endpoint: 'system-monitor',
+        metrics: {
+          cpuUsage: metrics.cpuUsage,
+          memoryUsage: metrics.memoryUsage,
+          responseTime: metrics.loadAverage || 0,
+          errorRate: 0
+        },
+        tags: ['real-time', 'host-metrics']
+      });
+      await systemMetric.save();
+      io.emit('metric:update', systemMetric);
+    } catch (err) {
+      console.error('Failed to save system metric:', err);
+    }
+  }
+}, 3000); // Every 3 seconds
+
 // Error Handler
 app.use(errorHandler);
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5006;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

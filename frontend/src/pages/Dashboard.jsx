@@ -16,8 +16,13 @@ const Dashboard = () => {
             setMetrics(prev => [newMetric, ...prev].slice(0, 50));
         });
 
+        socket.on('system:metrics', (sysMetrics) => {
+            console.log('Real System Metrics:', sysMetrics);
+        });
+
         return () => {
             socket.off('metric:update');
+            socket.off('system:metrics');
         };
     }, []);
 
